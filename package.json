@@ -1,0 +1,21 @@
+{
+  "name": "personnel-fm-be",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sandeshshetty516/personnel-fm-be.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/sandeshshetty516/personnel-fm-be/issues"
+  },
+  "homepage": "https://github.com/sandeshshetty516/personnel-fm-be#readme"
+}
