@@ -5,4 +5,6 @@ process.env.CORS_ORIGINS = 'http://localhost:5173';
 process.env.JWT_ACCESS_SECRET = 'test-secret-that-is-definitely-longer-than-32-chars';
 // Fast hashing keeps the suite quick; production uses the default cost.
 process.env.BCRYPT_ROUNDS = '4';
+// Every request in a test file comes from one IP; keep the limiters out of the way.
 process.env.AUTH_RATE_LIMIT_MAX = '1000';
+process.env.RATE_LIMIT_MAX = '10000';
