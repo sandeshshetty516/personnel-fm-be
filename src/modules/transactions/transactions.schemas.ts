@@ -21,6 +21,10 @@ export const transactionSchema = z
     counterpartAccountId: z.string().nullable().openapi({
       description: 'For transfers: the other account (destination for TRANSFER_OUT, source for TRANSFER_IN)',
     }),
+    debtId: z.string().nullable().openapi({
+      description: 'Set when the transaction belongs to a lend/borrow record; change it through /debts',
+    }),
+    affectsBalance: z.boolean().openapi({ description: 'False only for bad-debt write-offs' }),
     createdAt: z.string().openapi({ format: 'date-time' }),
     updatedAt: z.string().openapi({ format: 'date-time' }),
   })
@@ -82,7 +86,10 @@ const SORTS = ['date_desc', 'date_asc', 'amount_desc', 'amount_asc'] as const;
 export const transactionFilterFields = z.object({
   from: calendarDateSchema.optional().openapi({ description: 'Inclusive start date' }),
   to: calendarDateSchema.optional().openapi({ description: 'Inclusive end date' }),
-  type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER']).optional().openapi({ description: 'TRANSFER matches both legs' }),
+  type: z
+    .enum(['INCOME', 'EXPENSE', 'TRANSFER', 'DEBT'])
+    .optional()
+    .openapi({ description: 'TRANSFER matches both legs; DEBT matches lend/borrow money in and out' }),
   accountId: objectIdSchema.optional(),
   categoryId: objectIdSchema.optional(),
   paymentMethod: z.enum(PAYMENT_METHODS).optional(),
