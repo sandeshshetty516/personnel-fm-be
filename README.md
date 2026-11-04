@@ -43,6 +43,7 @@ npm run dev            # http://localhost:4000
 - **Layering:** each feature module in `src/modules/<feature>/` keeps routes, controllers, services, models and Zod schemas separate. Business logic lives in services, not controllers.
 - **Validation and docs:** request validation uses Zod through `middleware/validate.ts`. The same schemas are registered with `docs/openapi.ts`, so Swagger stays in sync with what the API accepts.
 - **Money:** amounts are stored as integer **paise** (₹1 = 100 paise), and floating-point maths is never used for totals.
+- **Lend & borrow:** `DEBT_IN` / `DEBT_OUT` transactions move balances but are never income or expense; a bad-debt write-off is an expense with `affectsBalance: false`. See [ADR 0001](docs/adr/0001-person-to-person-debts.md).
 - **Ownership:** every query is scoped to the authenticated user's ID.
 
 ## Authentication

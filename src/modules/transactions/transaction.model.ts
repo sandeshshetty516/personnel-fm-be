@@ -4,13 +4,16 @@ import { model, Schema, type HydratedDocument, type InferSchemaType } from 'mong
  * Amounts are always positive paise; the type decides the direction.
  * A transfer is two documents sharing a transferGroupId: TRANSFER_OUT on the source account and
  * TRANSFER_IN on the destination. Transfers never count as income or expense (FR-016).
+ * DEBT_OUT / DEBT_IN are money lent, borrowed or repaid between people (FR-078); like transfers they
+ * move balances but are never income or expense, and they are managed only through their debt.
  */
-export const TRANSACTION_TYPES = ['INCOME', 'EXPENSE', 'TRANSFER_IN', 'TRANSFER_OUT'] as const;
+export const TRANSACTION_TYPES = ['INCOME', 'EXPENSE', 'TRANSFER_IN', 'TRANSFER_OUT', 'DEBT_IN', 'DEBT_OUT'] as const;
 export type TransactionType = (typeof TRANSACTION_TYPES)[number];
 
 /** Types that add to / subtract from an account balance. */
-export const CREDIT_TYPES: readonly TransactionType[] = ['INCOME', 'TRANSFER_IN'];
-export const DEBIT_TYPES: readonly TransactionType[] = ['EXPENSE', 'TRANSFER_OUT'];
+export const CREDIT_TYPES: readonly TransactionType[] = ['INCOME', 'TRANSFER_IN', 'DEBT_IN'];
+export const DEBIT_TYPES: readonly TransactionType[] = ['EXPENSE', 'TRANSFER_OUT', 'DEBT_OUT'];
+export const DEBT_TYPES: readonly TransactionType[] = ['DEBT_IN', 'DEBT_OUT'];
 
 export const PAYMENT_METHODS = ['CASH', 'UPI', 'DEBIT_CARD', 'CREDIT_CARD', 'NET_BANKING', 'CHEQUE', 'OTHER'] as const;
 
@@ -27,6 +30,10 @@ const transactionSchema = new Schema(
     paymentMethod: { type: String, enum: PAYMENT_METHODS },
     notes: { type: String, trim: true, maxlength: 1000 },
     transferGroupId: { type: Schema.Types.ObjectId },
+    // Set on transactions created by a lend/borrow entry; such transactions are changed only via the debt.
+    debtId: { type: Schema.Types.ObjectId, ref: 'Debt' },
+    // False only for bad-debt write-offs: an expense whose money already left the account when it was lent.
+    affectsBalance: { type: Boolean, default: true },
   },
   { timestamps: true },
 );
@@ -35,6 +42,7 @@ transactionSchema.index({ userId: 1, transactionDate: -1 });
 transactionSchema.index({ userId: 1, accountId: 1, transactionDate: -1 });
 transactionSchema.index({ userId: 1, categoryId: 1 });
 transactionSchema.index({ transferGroupId: 1 }, { sparse: true });
+transactionSchema.index({ debtId: 1 }, { sparse: true });
 
 export type Transaction = InferSchemaType<typeof transactionSchema>;
 export type TransactionDocument = HydratedDocument<Transaction>;

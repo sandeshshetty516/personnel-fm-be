@@ -5,7 +5,7 @@ import { AccountModel } from '../accounts/account.model';
 import { findOwnedAccount } from '../accounts/accounts.service';
 import { findOwnedCategory } from '../categories/categories.service';
 import { DEFAULT_TIMEZONE, UserModel } from '../users/user.model';
-import { TransactionModel, type TransactionDocument } from './transaction.model';
+import { DEBT_TYPES, TransactionModel, type TransactionDocument } from './transaction.model';
 import type {
   CreateTransactionInput,
   ListTransactionsQuery,
@@ -29,6 +29,8 @@ type TransactionLike = Pick<
   | 'accountId'
   | 'categoryId'
   | 'transferGroupId'
+  | 'debtId'
+  | 'affectsBalance'
   | 'createdAt'
   | 'updatedAt'
 >;
@@ -49,6 +51,8 @@ export function toResponse(
     categoryId: tx.categoryId?.toString() ?? null,
     transferGroupId: tx.transferGroupId?.toString() ?? null,
     counterpartAccountId: counterpartAccountId?.toString() ?? null,
+    debtId: tx.debtId?.toString() ?? null,
+    affectsBalance: tx.affectsBalance !== false,
     createdAt: tx.createdAt.toISOString(),
     updatedAt: tx.updatedAt.toISOString(),
   };
@@ -114,6 +118,7 @@ function buildMatch(userId: string, filters: TransactionFilters): Record<string,
 
   const typeConditions: Record<string, unknown>[] = [];
   if (filters.type === 'TRANSFER') typeConditions.push({ type: { $in: ['TRANSFER_IN', 'TRANSFER_OUT'] } });
+  else if (filters.type === 'DEBT') typeConditions.push({ type: { $in: DEBT_TYPES } });
   else if (filters.type) typeConditions.push({ type: filters.type });
   if (!filters.accountId) typeConditions.push({ type: { $ne: 'TRANSFER_IN' } });
   if (typeConditions.length) match.$and = typeConditions;
@@ -228,6 +233,13 @@ export async function findOwnedTransaction(userId: string, transactionId: string
   return tx;
 }
 
+/** Debt-linked transactions change only through their debt, so the debt's totals and the balance agree. */
+function assertNotDebtLinked(tx: TransactionDocument) {
+  if (tx.debtId) {
+    throw AppError.badRequest('This transaction belongs to a lend/borrow record. Change it from Lend & Borrow.');
+  }
+}
+
 async function counterpartOf(tx: TransactionDocument): Promise<Types.ObjectId | null> {
   if (!tx.transferGroupId) return null;
   const other = await TransactionModel.findOne({
@@ -265,6 +277,7 @@ export async function updateTransaction(
   input: UpdateTransactionInput,
 ): Promise<TransactionResponse> {
   const tx = await findOwnedTransaction(userId, transactionId);
+  assertNotDebtLinked(tx);
   if (input.date && input.date !== formatCalendarDate(tx.transactionDate)) await assertNotFuture(userId, input.date);
 
   if (tx.transferGroupId) return updateTransfer(userId, tx, input);
@@ -321,6 +334,7 @@ async function updateTransfer(userId: string, tx: TransactionDocument, input: Up
 /** Deleting either leg of a transfer deletes both. */
 export async function deleteTransaction(userId: string, transactionId: string): Promise<{ deletedCount: number }> {
   const tx = await findOwnedTransaction(userId, transactionId);
+  assertNotDebtLinked(tx);
   if (!tx.transferGroupId) {
     await tx.deleteOne();
     return { deletedCount: 1 };
